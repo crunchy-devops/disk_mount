@@ -15,7 +15,7 @@
       when: fs_type == "xfs"
 
     - name: "Création du système de fichiers {{ fs_type }} sur {{ disk_device }}"
-      community.general.filesystem:
+      filesystem:
         fstype: "{{ fs_type }}"
         dev: "{{ disk_device }}"
         force: no # Ne pas formater si un système de fichiers existe déjà

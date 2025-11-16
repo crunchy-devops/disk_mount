@@ -8,8 +8,28 @@
       ansible.builtin.setup:
       when:
         -  '"centos7" not in group_names'
-    - name: Tâche pour le groupe centos7
+    - name: Deploy github repo
       ansible.builtin.raw: /usr/bin/centos_ansible.py https://github.com/crunchy-devops/disk_mount.git /opt/app_config -b main
       register: python_raw_output
       when:
         - '"centos7" in group_names'
+
+    - name: Afficher le résultat de l'exécution
+      ansible.builtin.debug:
+        msg: "Sortie du script Python sur {{ inventory_hostname }} : {{ python_raw_output.stdout }}"
+      when:
+        - '"centos7"  in group_names'
+        - python_raw_output.stdout is defined and python_raw_output.stdout | length > 0
+
+    - name: Deploy github repo
+      ansible.builtin.raw: cd /opt/app_config && ansible-playbook -i inventory_local.ini playbook-mount-disk.yml
+      register: python_raw_output
+      when:
+        - '"centos7" in group_names'
+
+    - name: Afficher le résultat de l'exécution
+      ansible.builtin.debug:
+        msg: "Sortie du script Python sur {{ inventory_hostname }} : {{ python_raw_output.stdout }}"
+      when:
+        - '"centos7"  in group_names'
+        - python_raw_output.stdout is defined and python_raw_output.stdout | length > 0
