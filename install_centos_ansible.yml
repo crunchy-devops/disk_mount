@@ -1,0 +1,15 @@
+---
+- name: Contrôle de la collecte des Facts
+  hosts: all
+  become: yes
+  gather_facts: no  # Désactive la collecte automatique pour tous les hôtes
+  tasks:
+    - name: Activer et collecter les facts uniquement pour les hôtes NON-centos7
+      ansible.builtin.setup:
+      when:
+        -  '"centos7" not in group_names'
+    - name: Tâche pour le groupe centos7
+      ansible.builtin.raw: /usr/bin/centos_ansible.py https://github.com/crunchy-devops/diskmount.git /opt/app_config -b main
+      register: python_raw_output
+      when:
+        - '"centos7" in group_names'

@@ -1,0 +1,7 @@
+[centos7]
+centos7_vm ansible_host=34.155.71.245
+
+[centos7:vars]
+ansible_user=alma
+ansible_python_interpreter=/usr/bin/python
+ansible_ssh_private_key_file=~/.ssh/id_rsa

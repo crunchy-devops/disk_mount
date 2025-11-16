@@ -1,0 +1,17 @@
+---
+- name: Playbook pour démonter un disque et nettoyer fstab
+  hosts: centos_servers
+  become: yes
+  vars:
+    mount_point: "/data"
+
+  tasks:
+    - name: "Démontage du disque sur {{ mount_point }}"
+      mount:
+        path: "{{ mount_point }}"
+        state: unmounted
+
+    - name: "Suppression de l'entrée fstab pour {{ mount_point }}"
+      mount:
+        path: "{{ mount_point }}"
+        state: absent # 'absent' supprime l'entrée de fstab

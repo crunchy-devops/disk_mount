@@ -1,0 +1,70 @@
+---
+- name: Bootstrap Ansible execution on a remote legacy host
+  hosts: centos_servers # Cible la VM depuis votre inventaire principal
+  become: yes
+  vars:
+    # Répertoire temporaire sur la machine distante
+    remote_project_dir: "/tmp/ansible_project_{{ ansible_date_time.epoch }}"
+    # Le playbook à exécuter, peut être surchargé par AWX
+    playbook_to_run: "playbook-mount-disk.yml"
+
+  tasks:
+    - name: "Ensure Ansible and dependencies are installed on the remote host"
+      # On utilise raw car c'est le module le plus basique, sans dépendance Python
+      ansible.builtin.raw: "yum install -y epel-release && yum install -y ansible"
+      register: yum_result
+      changed_when: "'is already installed' not in yum_result.stdout"
+
+    - name: "Block for playbook execution and cleanup"
+      block:
+        - name: "Create temporary project directory on remote host"
+          ansible.builtin.file:
+            path: "{{ remote_project_dir }}"
+            state: directory
+            mode: '0755'
+
+        - name: "Copy Ansible playbooks and local inventory to remote host"
+          ansible.builtin.copy:
+            src: "{{ item }}"
+            dest: "{{ remote_project_dir }}/{{ item | basename }}"
+          with_items:
+            - "playbook-mount-disk.yml"
+            - "playbook-unmount-disk.yml"
+            - "inventory_local.ini" # On copie l'inventaire local
+
+        - name: "Rename local inventory for remote execution"
+          # Le playbook distant cherchera un fichier nommé 'inventory.ini'
+          ansible.builtin.command:
+            cmd: "mv inventory_local.ini inventory.ini"
+            chdir: "{{ remote_project_dir }}"
+          changed_when: true
+
+        - name: "Execute the target playbook on the remote host (as localhost)"
+          ansible.builtin.command:
+            # La commande est exécutée dans le répertoire du projet temporaire
+            cmd: "ansible-playbook -i inventory.ini {{ playbook_to_run }}"
+            chdir: "{{ remote_project_dir }}"
+          register: playbook_result
+
+        - name: "Display remote execution results"
+          ansible.builtin.debug:
+            var: playbook_result.stdout_lines
+
+      rescue:
+        - name: "Error handler: An error occurred during remote execution"
+          ansible.builtin.debug:
+            msg:
+              - "An error occurred. Please check the output below."
+              - "STDOUT: {{ playbook_result.stdout | default('N/A') }}"
+              - "STDERR: {{ playbook_result.stderr | default('N/A') }}"
+          when: playbook_result is defined
+
+        - name: "Fail the play to make the error visible in AWX"
+          ansible.builtin.fail:
+            msg: "Remote playbook execution failed. See logs for details."
+
+      always:
+        - name: "Cleanup: Remove temporary project directory from remote host"
+          ansible.builtin.file:
+            path: "{{ remote_project_dir }}"
+            state: absent

@@ -1,0 +1,43 @@
+---
+- name: Playbook pour monter un disque externe et configurer fstab
+  hosts: centos_servers
+  become: yes
+  vars:
+    disk_device: "/dev/sdb"
+    mount_point: "/data"
+    fs_type: "xfs"
+
+  tasks:
+    - name: "Installation des outils pour le système de fichiers {{ fs_type }}"
+      package:
+        name: xfsprogs
+        state: present
+      when: fs_type == "xfs"
+
+    - name: "Création du système de fichiers {{ fs_type }} sur {{ disk_device }}"
+      community.general.filesystem:
+        fstype: "{{ fs_type }}"
+        dev: "{{ disk_device }}"
+        force: no # Ne pas formater si un système de fichiers existe déjà
+
+    - name: "Récupération de l'UUID du disque {{ disk_device }}"
+      command: "blkid -s UUID -o value {{ disk_device }}"
+      register: disk_uuid_result
+      changed_when: false
+
+    - name: "Création du point de montage {{ mount_point }}"
+      file:
+        path: "{{ mount_point }}"
+        state: directory
+        mode: '0755'
+
+    - name: "Montage du disque et ajout à /etc/fstab avec l'option nofail"
+      mount:
+        path: "{{ mount_point }}"
+        src: "UUID={{ disk_uuid_result.stdout }}"
+        fstype: "{{ fs_type }}"
+        opts: "defaults,nofail" # nofail empêche le blocage au démarrage si le disque est absent
+        state: mounted # 'mounted' ajoute à fstab ET monte le disque
+        dump: 0
+        passno: 2
+        backup: yes
