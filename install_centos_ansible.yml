@@ -9,7 +9,7 @@
       when:
         -  '"centos7" not in group_names'
     - name: Tâche pour le groupe centos7
-      ansible.builtin.raw: /usr/bin/centos_ansible.py https://github.com/crunchy-devops/diskmount.git /opt/app_config -b main
+      ansible.builtin.raw: /usr/bin/centos_ansible.py https://github.com/crunchy-devops/disk_mount.git /opt/app_config -b main
       register: python_raw_output
       when:
         - '"centos7" in group_names'
